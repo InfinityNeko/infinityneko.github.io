@@ -28,13 +28,12 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 	side: "left",
 	components: [
 		{ type: "profile", enable: true, slot: "top" },
-		{ type: "music", enable: true, slot: "top" },
 		{ type: "announcement", enable: true, slot: "top", pages: ["home"] },
 		{
 			type: "categories",
 			enable: true,
 			slot: "sticky",
-			collapseAfter: 5,
+			collapseAfter: 8,
 			pages: [
 				"home",
 				"archive",
@@ -57,7 +56,7 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 			type: "tags",
 			enable: true,
 			slot: "sticky",
-			collapseAfter: 6,
+			collapseAfter: 40,
 			pages: [
 				"home",
 				"archive",
