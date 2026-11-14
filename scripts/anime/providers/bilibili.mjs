@@ -1,8 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { applyMirror, downloadCoverLocally } from "./cover.mjs";
 
-const projectRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const API_BASE = "https://api.bilibili.com/x/space/bangumi/follow/list";
 const USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -19,47 +16,31 @@ function parseBiliProgress(rawProgress) {
 	if (typeof rawProgress === "number" && Number.isFinite(rawProgress)) {
 		return Math.max(0, Math.floor(rawProgress));
 	}
-	if (typeof rawProgress === "string") {
+	if (typeof rawProgress === "string" && rawProgress.trim()) {
 		const match = rawProgress.match(/(\d+)/);
 		if (match) {
 			return Number.parseInt(match[1], 10) || 0;
 		}
 	}
-	return 0;
+	return undefined;
 }
 
-async function downloadCoverLocally(coverUrl, id) {
-	if (!coverUrl || !coverUrl.startsWith("http")) return undefined;
+async function downloadBilibiliCover(coverUrl, id, coverConfig = {}) {
+	if (!coverUrl || !coverUrl.startsWith("https://")) return undefined;
 
-	try {
-		const coversDir = join(projectRoot, "public/assets/anime/covers");
-		if (!existsSync(coversDir)) {
-			mkdirSync(coversDir, { recursive: true });
-		}
-
-		const ext = coverUrl.includes(".png") ? "png" : "webp";
-		const fileName = `bili_${id}.${ext}`;
-		const filePath = join(coversDir, fileName);
-
-		const res = await fetch(coverUrl, {
-			headers: {
-				"User-Agent": USER_AGENT,
-				Referer: "https://www.bilibili.com/",
-			},
-			signal: AbortSignal.timeout(10000),
-		});
-
-		if (res.ok) {
-			const buffer = await res.arrayBuffer();
-			writeFileSync(filePath, Buffer.from(buffer));
-			return `/assets/anime/covers/${fileName}`;
-		}
-	} catch (error) {
-		console.warn(
-			`[Bilibili] Failed to download cover locally for ${id}: ${error.message}`,
-		);
+	// 若启用了 useWebp（默认 true），B站图片 URL 追加裁剪尺寸与 webp 转换参数，避免 2MB 原图直落盘
+	let targetUrl = coverUrl;
+	if (coverConfig.useWebp !== false && !targetUrl.includes("@")) {
+		targetUrl = `${targetUrl}@220w_280h.webp`;
 	}
-	return undefined;
+
+	return downloadCoverLocally(targetUrl, `bili_${id}`, {
+		headers: {
+			"User-Agent": USER_AGENT,
+			Referer: "https://www.bilibili.com/",
+		},
+		tag: "Bilibili",
+	});
 }
 
 /**
@@ -210,6 +191,7 @@ export async function fetchBilibiliData(bilibiliConfig) {
 			typeof item.total_count === "number" && item.total_count > 0
 				? item.total_count
 				: 0;
+		const progress = watched !== undefined ? { watched, total } : undefined;
 
 		// 封面处理
 		let cover = item.cover || "";
@@ -220,15 +202,17 @@ export async function fetchBilibiliData(bilibiliConfig) {
 		}
 
 		if (coverConfig.mode === "local" && cover) {
-			const localCover = await downloadCoverLocally(cover, idKey);
+			const localCover = await downloadBilibiliCover(
+				cover,
+				idKey,
+				coverConfig,
+			);
 			cover = localCover || cover;
 		} else if (coverConfig.mode === "remote" && cover) {
 			if (coverConfig.useWebp !== false && !cover.includes("@")) {
 				cover = `${cover}@220w_280h.webp`;
 			}
-			if (coverConfig.mirror) {
-				cover = `${coverConfig.mirror.replace(/\/+$/, "")}/${cover.replace(/^https?:\/\//, "")}`;
-			}
+			cover = applyMirror(cover, coverConfig.mirror);
 		} else if (coverConfig.mode === "none") {
 			cover = "";
 		}
@@ -277,7 +261,7 @@ export async function fetchBilibiliData(bilibiliConfig) {
 			title,
 			status,
 			rating,
-			progress: { watched, total },
+			progress,
 			cover: cover || undefined,
 			link: link || undefined,
 			description: description || undefined,

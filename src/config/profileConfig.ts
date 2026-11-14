@@ -12,7 +12,7 @@ export const profileConfig: ProfileConfig = withUserConfig("profile", {
 	links: [
 		{
 			name: "GitHub",
-			icon: "fa6-brands:github",
+			icon: "fa7-brands:github", // Visit https://icones.js.org/ for icon codes
 			url: "https://github.com/InfinityNeko",
 		},
 	],

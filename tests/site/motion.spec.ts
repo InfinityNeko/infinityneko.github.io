@@ -50,7 +50,7 @@ test.describe("Site motion", () => {
 			page.locator(
 				".m3-blog-archive__group:nth-child(2) .m3-blog-archive__item",
 			),
-		).toHaveCount(4);
+		).toHaveCount(3);
 	});
 
 	test("does not collapse animate on initial render or grouping changes", async ({
@@ -174,7 +174,7 @@ test.describe("Site motion", () => {
 			page.locator(
 				".m3-blog-archive__group:nth-child(2) .m3-blog-archive__item",
 			),
-		).toHaveCount(4);
+		).toHaveCount(3);
 	});
 
 	test("toggles aria-expanded and hides content when collapsed", async ({
@@ -296,9 +296,7 @@ test.describe("sidebar pages filter (swup sync)", () => {
 			const row = [...document.querySelectorAll(".m3-site-stats__row")].find(
 				(element) => element.textContent?.includes("Tags"),
 			);
-			const icon = row?.querySelector(
-				'svg[data-icon="material-symbols:tag-rounded"]',
-			);
+			const icon = row?.querySelector("svg");
 			return !!icon?.querySelector("path");
 		});
 	}

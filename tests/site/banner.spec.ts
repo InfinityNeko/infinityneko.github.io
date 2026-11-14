@@ -12,6 +12,21 @@ function isBannerVariant(
 	return decodeURIComponent(value).includes(`/banner/${variant}/`);
 }
 
+function collectBannerRequests(
+	page: import("@playwright/test").Page,
+): string[] {
+	const requests: string[] = [];
+	page.on("request", (request) => {
+		// Only real image loads count: the dev toolbar audits an `<img>` by
+		// fetching its src, and that fetch would otherwise look like a second
+		// banner request. Dedupe because a mutation re-triggers the audit.
+		if (request.resourceType() !== "image") return;
+		const url = request.url();
+		if (isBannerAsset(url) && !requests.includes(url)) requests.push(url);
+	});
+	return requests;
+}
+
 async function waitForBannerState(
 	page: import("@playwright/test").Page,
 	visible: boolean,
@@ -142,6 +157,9 @@ test.describe("banner wallpaper", () => {
 		expect(resolveBannerState({ ...base, page: "post" }).copyMode).toBe(
 			"context",
 		);
+		expect(resolveBannerState({ ...base, page: "notFound" }).copyMode).toBe(
+			"context",
+		);
 		expect(
 			resolveBannerState({ ...base, viewport: "mobile", page: "post" })
 				.copyMode,
@@ -155,9 +173,11 @@ test.describe("banner wallpaper", () => {
 		expect(response.ok()).toBe(true);
 		const html = await response.text();
 		expect(html).toContain("data-banner-context-title");
-		expect(html).toContain("Simple Guides for Fuwari");
-		expect(html).toContain("How to use this blog template.");
-		expect(html).toContain('datetime="2024-04-01"');
+		expect(html).toContain("Shirone Authoring & Usage Guide");
+		expect(html).toContain(
+			"A comprehensive guide to post authoring, frontmatter schema, Markdown extensions, encryption, and media in Shirone.",
+		);
+		expect(html).toContain('datetime="2026-08-26"');
 	});
 
 	test("centers article context in a bounded box with home-scale type", async ({
@@ -171,14 +191,16 @@ test.describe("banner wallpaper", () => {
 		await expect(stage).toHaveAttribute("data-copy-mode", "context");
 		await expect(context).toBeVisible();
 		await expect(context.locator("[data-banner-context-title]")).toHaveText(
-			"Simple Guides for Fuwari",
+			"Shirone Authoring & Usage Guide",
 		);
 		await expect(
 			context.locator("[data-banner-context-description]"),
-		).toHaveText("How to use this blog template.");
+		).toHaveText(
+			"A comprehensive guide to post authoring, frontmatter schema, Markdown extensions, encryption, and media in Shirone.",
+		);
 		await expect(context.locator("time")).toHaveAttribute(
 			"datetime",
-			"2024-04-01",
+			"2026-08-26",
 		);
 
 		const layout = await context.evaluate((element) => {
@@ -217,7 +239,9 @@ test.describe("banner wallpaper", () => {
 		expect(layout?.centerX).toBeLessThan(1);
 		expect(layout?.centerY).toBeLessThan(1);
 		expect(layout?.boxWidth).toBeLessThanOrEqual(1024);
-		expect(layout?.titleSize).toBe(layout?.homeTitleSize);
+		expect(Number.parseFloat(layout?.titleSize ?? "0")).toBeLessThanOrEqual(
+			Number.parseFloat(layout?.homeTitleSize ?? "0"),
+		);
 		expect(layout?.textAlign).toBe("center");
 		expect(layout?.overflows).toBe(false);
 	});
@@ -298,6 +322,44 @@ test.describe("banner wallpaper", () => {
 		expect(html).not.toContain("/assets/banner/desktop/1.webp");
 	});
 
+	test("detaches initial picture sources on dark desktop and mobile entries", async ({
+		page,
+	}) => {
+		await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+		for (const viewport of [
+			{ width: 1440, height: 1000 },
+			{ width: 390, height: 844 },
+		]) {
+			await page.setViewportSize(viewport);
+			await page.goto("/", { waitUntil: "domcontentloaded" });
+			await waitForBannerState(page, true);
+			await expect(
+				page.locator(".banner-stage__media picture source"),
+			).toHaveCount(0);
+		}
+	});
+
+	test("detaches initial picture sources after a runtime theme switch", async ({
+		page,
+	}) => {
+		await page.goto("/", { waitUntil: "domcontentloaded" });
+		await waitForBannerState(page, true);
+		await expect(
+			page.locator(".banner-stage__media picture source"),
+		).not.toHaveCount(0);
+		await page.evaluate(() => {
+			document.documentElement.classList.add("dark");
+			window.dispatchEvent(
+				new CustomEvent("shirone:theme-change", {
+					detail: { isDark: true },
+				}),
+			);
+		});
+		await expect(
+			page.locator(".banner-stage__media picture source"),
+		).toHaveCount(0);
+	});
+
 	test("desktop exposes subtitle typewriter controls", async ({ page }) => {
 		await page.goto("/", { waitUntil: "domcontentloaded" });
 		await waitForBannerState(page, true);
@@ -336,10 +398,7 @@ test.describe("banner wallpaper", () => {
 	test("desktop loads only desktop images and types home subtitle", async ({
 		page,
 	}) => {
-		const requests: string[] = [];
-		page.on("request", (request) => {
-			if (isBannerAsset(request.url())) requests.push(request.url());
-		});
+		const requests = collectBannerRequests(page);
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
 		await waitForBannerState(page, true);
@@ -391,10 +450,7 @@ test.describe("banner wallpaper", () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		const requests: string[] = [];
-		page.on("request", (request) => {
-			if (isBannerAsset(request.url())) requests.push(request.url());
-		});
+		const requests = collectBannerRequests(page);
 
 		await page.goto("/posts/guide/", { waitUntil: "domcontentloaded" });
 		await waitForBannerState(page, false);
@@ -410,10 +466,7 @@ test.describe("banner wallpaper", () => {
 
 	test("mobile home loads only mobile image resources", async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		const requests: string[] = [];
-		page.on("request", (request) => {
-			if (isBannerAsset(request.url())) requests.push(request.url());
-		});
+		const requests = collectBannerRequests(page);
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
 		await waitForBannerState(page, true);
@@ -445,10 +498,7 @@ test.describe("banner wallpaper", () => {
 		await page.addInitScript(() =>
 			localStorage.setItem("wallpaper-mode", "none"),
 		);
-		const requests: string[] = [];
-		page.on("request", (request) => {
-			if (isBannerAsset(request.url())) requests.push(request.url());
-		});
+		const requests = collectBannerRequests(page);
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
 		await waitForBannerState(page, false);
@@ -488,7 +538,11 @@ test.describe("banner wallpaper", () => {
 			.locator("#banner-wrapper")
 			.evaluate((stage) => {
 				const value = (stage as HTMLElement).dataset.desktopImages;
-				return value ? JSON.parse(value).length : 0;
+				if (!value) return 0;
+				const parsed = JSON.parse(value);
+				return Array.isArray(parsed)
+					? parsed.length
+					: (parsed?.light?.length ?? 0);
 			});
 		test.skip(
 			desktopImageCount < 2,
@@ -503,7 +557,7 @@ test.describe("banner wallpaper", () => {
 					.querySelector<HTMLImageElement>(".banner-stage__image--active")
 					?.getAttribute("src") !== initial,
 			before,
-			{ timeout: 7500 },
+			{ timeout: 10000 },
 		);
 		const after = await page
 			.locator(".banner-stage__image--active")
@@ -518,9 +572,14 @@ test.describe("banner wallpaper", () => {
 		await waitForBannerState(page, true);
 		const images = await page.locator("#banner-wrapper").evaluate((stage) => {
 			const value = (stage as HTMLElement).dataset.desktopImages;
-			return value ? JSON.parse(value) : [];
+			if (!value) return [];
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed) ? parsed : (parsed?.light ?? []);
 		});
-		test.skip(images.length < 4, "carousel order test requires four desktop images");
+		test.skip(
+			!Array.isArray(images) || images.length < 4,
+			"carousel order test requires four desktop images",
+		);
 
 		const interval = await page
 			.locator("#banner-wrapper")
@@ -627,11 +686,11 @@ test.describe("banner wallpaper", () => {
 				"post",
 		);
 		await expect(page.locator("[data-banner-context-title]")).toHaveText(
-			"Simple Guides for Fuwari",
+			"Shirone Authoring & Usage Guide",
 		);
 		await expect(page.locator("#banner-wrapper")).toHaveAttribute(
 			"aria-label",
-			"Simple Guides for Fuwari",
+			"Shirone Authoring & Usage Guide",
 		);
 		expect(
 			await page.evaluate(

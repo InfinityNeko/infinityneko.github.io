@@ -14,6 +14,7 @@ import MomentCard, {
 	type MomentAuthor,
 } from "@components/molecules/MomentCard.svelte";
 import PageHeader from "@components/molecules/PageHeader.svelte";
+import ProtectedMoment from "@components/organisms/ProtectedMoment.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import type { MomentItem } from "@utils/content-utils";
@@ -23,7 +24,14 @@ import { onMount } from "svelte";
 let {
 	moments = [] as MomentItem[],
 	author = { name: "", avatar: "", url: "/about/" } as MomentAuthor,
-}: { moments?: MomentItem[]; author?: MomentAuthor } = $props();
+	title = i18n(I18nKey.moments),
+	subtitle = i18n(I18nKey.momentsBanner),
+}: {
+	moments?: MomentItem[];
+	author?: MomentAuthor;
+	title?: string;
+	subtitle?: string;
+} = $props();
 
 const MOMENTS_PAGE_SIZE = 10;
 
@@ -37,7 +45,7 @@ let phase = $state<FilterPhase>("idle");
 let phaseTimers: ReturnType<typeof setTimeout>[] = [];
 
 const tagItems = $derived(
-	Array.from(new Set(moments.flatMap((moment) => moment.tags)))
+	Array.from(new Set(moments.flatMap((moment) => moment.filterTags)))
 		.sort((a, b) => a.localeCompare(b))
 		.map((tag) => ({ value: tag, label: tag })),
 );
@@ -59,7 +67,7 @@ const filtered = $derived.by(() => {
 	const normalizedQuery = query.trim().toLowerCase();
 
 	return moments.filter((moment) => {
-		if (selectedTag && !moment.tags.includes(selectedTag)) return false;
+		if (selectedTag && !moment.filterTags.includes(selectedTag)) return false;
 		if (!normalizedQuery) return true;
 		return (searchTexts.get(moment.id) ?? "").includes(normalizedQuery);
 	});
@@ -101,7 +109,11 @@ $effect(() => {
 	if (q) params.set("q", q);
 	if (t) params.set("tag", t);
 	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	history.replaceState(
+		history.state,
+		"",
+		qs ? `?${qs}` : window.location.pathname,
+	);
 });
 
 onMount(() => {
@@ -118,8 +130,8 @@ onMount(() => {
 <Card color="var(--card-bg)" radius="l" class="moment-section px-8 py-6">
 	<PageHeader
 		icon="material-symbols:auto-awesome-outline-rounded"
-		title={i18n(I18nKey.moments)}
-		subtitle={i18n(I18nKey.momentsBanner)}
+		{title}
+		{subtitle}
 	/>
 
 	{#if moments.length > 0}
@@ -176,7 +188,11 @@ onMount(() => {
 		{#key `${query}|${selectedTag}`}
 			<div class="moment-section__list">
 				{#each visibleMoments as moment, i (moment.id)}
-					<MomentCard {moment} {author} delay={Math.min(i, 7) * 45} />
+					{#if moment.encrypted}
+						<ProtectedMoment {moment} {author} delay={Math.min(i, 7) * 45} />
+					{:else}
+						<MomentCard {moment} {author} delay={Math.min(i, 7) * 45} />
+					{/if}
 				{/each}
 			</div>
 		{/key}
@@ -252,7 +268,8 @@ onMount(() => {
 
 	&__list
 		display: grid
-		grid-template-columns: 1fr
+		/* 显式下限 0：长链接等不可断 token 的 min-content 不得撑宽网格轨道 */
+		grid-template-columns: minmax(0, 1fr)
 		gap: 1rem
 		padding-top: 1.5rem
 

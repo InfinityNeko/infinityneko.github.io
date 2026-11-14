@@ -5,6 +5,9 @@
  *   一级导航（navBarConfig）+ 可折叠「分类」分组（多级扩展点）。
  * 链接由 Swup 自动接管，点击后收起抽屉；高亮与当前路由/分类筛选同步。
  */
+
+import I18nKey from "@i18n/i18nKey";
+import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
 import { resolveNavBarLinks, resolvePageKey } from "@utils/nav-utils";
 import { url } from "@utils/url-utils";
@@ -113,7 +116,7 @@ let drawerEl: HTMLElement | undefined = $state();
 			<div class="site-drawer__subtitle">{siteConfig.subtitle}</div>
 		</div>
 
-		<nav class="site-drawer__nav" aria-label="Navigation drawer">
+		<nav class="site-drawer__nav" aria-label={i18n(I18nKey.navigationDrawer)}>
 			{#each primaryItems as item (item.value)}
 				{#if item.children}
 					<div class="site-drawer__group">
@@ -188,7 +191,7 @@ let drawerEl: HTMLElement | undefined = $state();
 		transform: translateX(0)
 
 	&__brand
-		padding: 20px 28px 12px
+		padding: var(--m3e-space-5) var(--shape-corner-xl) var(--m3e-space-3)
 		flex: none
 
 	&__title
@@ -196,24 +199,24 @@ let drawerEl: HTMLElement | undefined = $state();
 		color: var(--on-surface)
 
 	&__subtitle
-		margin-top: 4px
+		margin-top: var(--m3e-space-1)
 		font: var(--m3e-type-body-medium)
 		color: var(--on-surface-variant)
 
 	&__nav
 		flex: 1
 		overflow-y: auto
-		padding: 8px 12px 16px
+		padding: var(--m3e-space-2) var(--m3e-space-3) var(--m3e-space-4)
 
 	/* 一级/子项：全宽 56dp，选中整项 secondary-container 全圆 pill */
 	&__item
 		display: flex
 		align-items: center
-		gap: 12px
+		gap: var(--m3e-space-3)
 		width: 100%
 		min-height: 56px
 		box-sizing: border-box
-		padding: 0 16px
+		padding: 0 var(--m3e-space-4)
 		border-radius: var(--shape-corner-full)
 		color: var(--on-surface-variant)
 		text-decoration: none
@@ -237,7 +240,7 @@ let drawerEl: HTMLElement | undefined = $state();
 
 		&--child
 			min-height: 48px
-			padding-left: 32px
+			padding-left: var(--m3e-space-8)
 
 	&__item-icon
 		display: flex
