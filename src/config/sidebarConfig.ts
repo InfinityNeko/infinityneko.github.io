@@ -53,7 +53,7 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 		},
 		{
 			type: "series",
-			enable: true,
+			enable: false, // 上游新增小部件；本站未启用 series 功能，保持关闭
 			slot: "sticky",
 			collapseAfter: 5,
 			pages: [
