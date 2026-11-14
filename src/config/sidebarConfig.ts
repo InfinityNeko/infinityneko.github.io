@@ -28,12 +28,13 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 	side: "left",
 	components: [
 		{ type: "profile", enable: true, slot: "top" },
+		{ type: "music", enable: true, slot: "top" },
 		{ type: "announcement", enable: true, slot: "top", pages: ["home"] },
 		{
 			type: "categories",
 			enable: true,
 			slot: "sticky",
-			collapseAfter: 8,
+			collapseAfter: 5,
 			pages: [
 				"home",
 				"archive",
@@ -53,7 +54,7 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 		},
 		{
 			type: "series",
-			enable: false, // 上游新增小部件；本站未启用 series 功能，保持关闭
+			enable: true,
 			slot: "sticky",
 			collapseAfter: 5,
 			pages: [
@@ -77,7 +78,7 @@ export const sidebarConfig: SidebarConfig = withUserConfig("sidebar", {
 			type: "tags",
 			enable: true,
 			slot: "sticky",
-			collapseAfter: 40,
+			collapseAfter: 6,
 			pages: [
 				"home",
 				"archive",
