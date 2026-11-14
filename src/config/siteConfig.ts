@@ -46,9 +46,11 @@ export const siteConfig: SiteConfig = withUserConfig("site", {
 		allowMotion: true,
 	},
 	banner: {
+		// 随机二次元图 API（远程 URL 构建期直通不优化，浏览器每次访问实时请求 → 每次随机）。
+		// 换 API 直接改 URL；要加固定图兜底就把 URL 追加进数组（如 "/background.png"）
 		src: {
-			desktop: ["/background.png"],
-			mobile: ["/background.png"],
+			desktop: ["https://t.alcy.cc/ycy"],
+			mobile: ["https://t.alcy.cc/moemp"],
 		},
 		position: "center",
 		dim: {
