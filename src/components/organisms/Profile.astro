@@ -23,7 +23,7 @@ interface Props {
 
 const className = Astro.props.class;
 const style = Astro.props.style;
-const priority = Astro.props.priority ?? false;
+const priority = Astro.props.priority ?? true;
 
 const config = profileConfig;
 const avatarAsset = await resolveImageAsset(config.avatar ?? "");
@@ -31,6 +31,10 @@ let avatarUrl = typeof avatarAsset === "string" ? avatarAsset : avatarAsset.src;
 let avatarSrcset: string | undefined;
 let avatarWidth: number | undefined;
 let avatarHeight: number | undefined;
+if (typeof avatarAsset === "string") {
+	avatarWidth = 256;
+	avatarHeight = 256;
+}
 if (typeof avatarAsset !== "string") {
 	const widths = [128, 256, 384, 512].filter(
 		(width) => width <= avatarAsset.width,
