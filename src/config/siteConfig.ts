@@ -119,10 +119,7 @@ export const siteConfig: SiteConfig = withUserConfig("site", {
 		// 进度条预设样式：dual 双向扫描（官方默认双线）/ single 单向扫描（单线）
 		style: "dual",
 	},
-	favicon: [
-		// 浏览器标签页图标，路径相对于 public 目录。
-		{ src: "/logo/icon.webp" },
-	],
+	favicon: [],
 });
 
 /**
